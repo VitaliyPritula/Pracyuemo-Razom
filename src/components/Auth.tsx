@@ -1,5 +1,6 @@
 'use client";'
 
+import Image from "next/image";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,10 +104,11 @@ export const Auth = () => {
         onClick={handleGoogleSignIn}
         disabled={isLoading}
       >
-        <img
+        <Image
           src="https://www.svgrepo.com/show/475656/google-color.svg"
           alt="Google"
-          className="w-5 h-5"
+          width={20}
+          height={20}
         />
         Продовжити з Google
       </Button>
