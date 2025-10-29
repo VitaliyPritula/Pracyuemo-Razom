@@ -1,4 +1,4 @@
-'use client";'
+'use client";';
 
 import Image from "next/image";
 import { useState } from "react";
@@ -24,12 +24,17 @@ export const Auth = () => {
         if (error) throw error;
         toast.success("Реєстрація успішна! Тепер можете увійти.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (error) throw error;
         toast.success("Успішний вхід!");
       }
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Невідома помилка";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -40,20 +45,21 @@ export const Auth = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-        },
+        options: { redirectTo: window.location.origin },
       });
       if (error) throw error;
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Невідома помилка";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Card className="p-6 max-w-md mx-auto ab
+    <Card
+      className="p-6 max-w-md mx-auto ab
     solute top-1/2 left-1/2 transform translate-x-1 -translate-y-1/2 w-full">
       <h2 className="text-2xl font-semibold text-foreground mb-4">
         {isSignUp ? "Реєстрація" : "Вхід"}
@@ -75,15 +81,18 @@ export const Auth = () => {
           required
         />
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? "Завантаження..." : isSignUp ? "Зареєструватись" : "Увійти"}
+          {isLoading
+            ? "Завантаження..."
+            : isSignUp
+            ? "Зареєструватись"
+            : "Увійти"}
         </Button>
       </form>
 
       <div className="mt-4 text-center">
         <button
           onClick={() => setIsSignUp(!isSignUp)}
-          className="text-primary hover:underline text-sm"
-        >
+          className="text-primary hover:underline text-sm">
           {isSignUp ? "Вже є акаунт? Увійти" : "Немає акаунту? Зареєструватись"}
         </button>
       </div>
@@ -102,8 +111,7 @@ export const Auth = () => {
         variant="outline"
         className="w-full flex items-center justify-center gap-2"
         onClick={handleGoogleSignIn}
-        disabled={isLoading}
-      >
+        disabled={isLoading}>
         <Image
           src="https://www.svgrepo.com/show/475656/google-color.svg"
           alt="Google"
