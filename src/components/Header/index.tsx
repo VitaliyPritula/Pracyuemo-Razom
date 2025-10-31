@@ -19,6 +19,7 @@ const Header = () => {
   const links = [
     { title: "Головна", href: "/" },
     { title: "Система спілкування", href: "/messaging" },
+    { title: "communicator", href: "/page1" },
     // { title: "Вакансії", href: "/jobs" },
     // { title: "Профіль", href: "/profile" },
   ];
