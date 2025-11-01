@@ -56,8 +56,6 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
   ];
 
   const loadUserProfiles = useCallback(async (userIds: string[]) => {
-    const profilesMap = new Map(userProfiles);
-
     // Get profiles from database
     const { data: profiles } = await supabase
       .from("profiles")
@@ -66,32 +64,38 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
 
     console.log('Loaded profiles from DB:', profiles);
 
-    // Add profiles to map
-    if (profiles) {
-      profiles.forEach(profile => {
-        const displayName = profile.full_name || 'User';
-        profilesMap.set(profile.id, {
-          id: profile.id,
-          full_name: displayName,
-        });
-      });
-    }
-
     // Get current user to show their email
     const { data: { user } } = await supabase.auth.getUser();
-    if (user && userIds.includes(user.id)) {
-      // For current user, use their email as display name
-      const displayName = user.email?.split('@')[0] || 'You';
-      console.log('Current user:', user.id, 'Display name:', displayName);
-      profilesMap.set(user.id, {
-        id: user.id,
-        full_name: displayName,
-        email: user.email,
-      });
-    }
 
-    setUserProfiles(profilesMap);
-  }, [userProfiles]);
+    // Use functional update to avoid dependency on userProfiles
+    setUserProfiles((prevProfiles) => {
+      const profilesMap = new Map(prevProfiles);
+      
+      // Add profiles to map
+      if (profiles) {
+        profiles.forEach(profile => {
+          const displayName = profile.full_name || 'User';
+          profilesMap.set(profile.id, {
+            id: profile.id,
+            full_name: displayName,
+          });
+        });
+      }
+
+      // For current user, use their email as display name
+      if (user && userIds.includes(user.id)) {
+        const displayName = user.email?.split('@')[0] || 'You';
+        console.log('Current user:', user.id, 'Display name:', displayName);
+        profilesMap.set(user.id, {
+          id: user.id,
+          full_name: displayName,
+          email: user.email,
+        });
+      }
+
+      return profilesMap;
+    });
+  }, []); // Empty dependencies - function never recreates
 
   const loadMessages = useCallback(async () => {
     const { data, error } = await supabase
@@ -112,7 +116,8 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
       }
       scrollToBottom();
     }
-  }, [conversationId, loadUserProfiles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]); // loadUserProfiles stable (empty deps), safe to omit
 
   useEffect(() => {
     // Get current user
@@ -194,7 +199,8 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, loadMessages, currentUserId, loadUserProfiles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]); // loadMessages and loadUserProfiles are stable, currentUserId not needed in deps
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -243,6 +249,18 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
       return;
     }
 
+    console.log('📤 Sending message:', {
+      conversationId,
+      currentUserId,
+      text: inputText.substring(0, 20) + '...'
+    });
+
+    if (!currentUserId) {
+      console.error('❌ No current user ID!');
+      toast.error("Помилка: користувач не авторизований");
+      return;
+    }
+
     // Stop typing indicator when sending
     broadcastTyping(false);
     if (typingTimeoutRef.current) {
@@ -267,7 +285,10 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
         .select()
         .single();
 
-      if (messageError) throw messageError;
+      if (messageError) {
+        console.error('❌ Database error:', messageError);
+        throw messageError;
+      }
 
       // Optimistically update UI immediately
       if (newMessage) {
