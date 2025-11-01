@@ -80,7 +80,6 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
     // Use functional update to avoid dependency on userProfiles
     setUserProfiles((prevProfiles) => {
       const profilesMap = new Map(prevProfiles);
-
       // Add profiles to map
       if (profiles) {
         profiles.forEach(profile => {
@@ -201,8 +200,8 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]); // loadMessages and loadUserProfiles are stable, currentUserId not needed in deps
 
   const scrollToBottom = () => {
     setTimeout(() => {
