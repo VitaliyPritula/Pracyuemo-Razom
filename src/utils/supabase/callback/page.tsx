@@ -10,7 +10,7 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuth = async () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+      const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
 
       if (error) {
         console.error("Auth error:", error.message);
