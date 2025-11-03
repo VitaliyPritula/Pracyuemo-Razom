@@ -11,7 +11,7 @@ export const signInWithGoogle = async () => {
     provider: "google",
     options: {
       // Після успішного входу користувача перекине на /messaging
-      redirectTo: `${process.env.SITE_URL}/auth/callback?next=/communicator`,
+      redirectTo: `${process.env.SITE_URL}/auth/callback?next=/messaging`,
     },
   });
 

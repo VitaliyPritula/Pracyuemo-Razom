@@ -19,7 +19,7 @@ export default function AuthCallbackPage() {
 
       // Беремо параметр next і редіректимо
       const urlParams = new URLSearchParams(window.location.search);
-      const next = urlParams.get("next") || "/communicator";
+      const next = urlParams.get("next") || "/messaging";
       router.replace(next);
     };
 
