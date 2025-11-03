@@ -11,10 +11,10 @@ interface CommunicatorProps {
   placeholder?: string;
 }
 
-export const Communicator = ({ 
+export default function Communicator({ 
   title = "Комунікатор", 
   placeholder = "Напишіть, що хочете сказати..." 
-}: CommunicatorProps) => {
+}: CommunicatorProps)  {
   const [text, setText] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
 
