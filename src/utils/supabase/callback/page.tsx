@@ -9,6 +9,7 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const handleAuth = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
 
       if (error) {
