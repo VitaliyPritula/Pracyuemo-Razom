@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Communicator } from "@/components/communicator";
+// import { Communicator } from "@/components/communicator";
 import {Button} from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,10 +35,10 @@ export default function ProfilePage() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Communicator */}
           <div className="lg:col-span-2 space-y-6">
-            <Communicator 
+            {/* <Communicator 
               title="Комунікатор"
               placeholder="Напишіть, що хочете сказати..."
-            />
+            /> */}
 
             {/* User Info Card */}
             <Card className="p-6 shadow-card">

@@ -1,5 +1,4 @@
-'use client'
-
+'use client';
 
 import { useState, useEffect } from 'react';
 import { supabase } from './client';
@@ -10,20 +9,29 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    if (!supabase) return; // додаткова перевірка для SSR
+
+    let isMounted = true;
+
+    // Отримуємо початкову сесію
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
+      if (isMounted) {
+        setSession(session);
+        setLoading(false);
+      }
     });
 
-    // Listen for auth changes
+    // Слухаємо зміни аутентифікації
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+      if (isMounted) setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return { session, user: session?.user, loading };

@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/hooks/client";
 import { toast } from "sonner";
+import { sendMessage } from "@/utils/supabase/chat";
+import { User } from "@supabase/supabase-js";
 import { Send, LogOut } from "lucide-react";
 import {
   Select,
@@ -26,6 +28,7 @@ interface Message {
 interface RealtimeChatProps {
   conversationId: string;
   onSignOut: () => void;
+  user: User;
 }
 
 interface UserProfile {
@@ -34,7 +37,13 @@ interface UserProfile {
   email?: string;
 }
 
-export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) => {
+interface Props {
+  conversationId: string;
+  onSignOut: () => void;
+  user: User;
+}
+
+export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
   const [targetLanguage, setTargetLanguage] = useState("uk");
@@ -44,6 +53,7 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
   const [userProfiles, setUserProfiles] = useState<Map<string, UserProfile>>(new Map());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [text, setText] = useState("");
 
   const languages = [
     { code: "uk", name: "Українська UA" },
@@ -70,7 +80,7 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
     // Use functional update to avoid dependency on userProfiles
     setUserProfiles((prevProfiles) => {
       const profilesMap = new Map(prevProfiles);
-      
+
       // Add profiles to map
       if (profiles) {
         profiles.forEach(profile => {
@@ -120,19 +130,18 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
   }, [conversationId]); // loadUserProfiles stable (empty deps), safe to omit
 
   useEffect(() => {
-    // Get current user
+    // Отримати поточного користувача
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setCurrentUserId(data.user.id);
-      }
+      if (data.user) setCurrentUserId(data.user.id);
     });
 
-    // Load existing messages
+    // Завантажити існуючі повідомлення
     loadMessages();
 
-    // Subscribe to new messages and typing indicators
+    // ✅ Один єдиний канал для Realtime
     const channel = supabase
       .channel(`conversation:${conversationId}`)
+      // Нові повідомлення
       .on(
         "postgres_changes",
         {
@@ -142,65 +151,58 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          console.log('📨 New message received via realtime:', payload.new);
           const newMessage = payload.new as Message;
-          // Prevent duplicates - only add if message doesn't already exist
           setMessages((current) => {
-            const exists = current.some(msg => msg.id === newMessage.id);
-            if (exists) {
-              console.log('⚠️ Duplicate message, skipping');
-              return current;
-            }
-            console.log('✅ Adding new message to state');
+            const exists = current.some((msg) => msg.id === newMessage.id);
+            if (exists) return current;
             return [...current, newMessage];
           });
 
-          // Load profile for new sender if we don't have it
+          // Якщо профілю відправника ще немає — підвантажуємо
           setUserProfiles((prev) => {
             if (!prev.has(newMessage.sender_id)) {
-              console.log('Loading profile for sender:', newMessage.sender_id);
               loadUserProfiles([newMessage.sender_id]);
             }
             return prev;
           });
 
-          // Remove typing indicator for user who sent message
+          // Прибрати typing-індикатор
           setTypingUsers((prev) => {
             const next = new Set(prev);
             next.delete(newMessage.sender_id);
             return next;
           });
+
           scrollToBottom();
         }
       )
-      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      // Typing broadcast
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
         const { userId, isTyping } = payload as { userId: string; isTyping: boolean };
         if (userId !== currentUserId) {
           setTypingUsers((prev) => {
             const next = new Set(prev);
-            if (isTyping) {
-              next.add(userId);
-            } else {
-              next.delete(userId);
-            }
+            if (isTyping) next.add(userId);
+            else next.delete(userId);
             return next;
           });
         }
       })
       .subscribe((status) => {
-        console.log('🔌 Realtime subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('✅ Successfully subscribed to conversation:', conversationId);
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error('❌ Channel error - realtime not working!');
+        console.log("🔌 Realtime status:", status);
+        if (status === "SUBSCRIBED") {
+          console.log("✅ Subscribed to:", conversationId);
+        } else if (status === "CHANNEL_ERROR") {
+          console.error("❌ Channel error!");
         }
       });
 
+    // 🔥 При розмонтуванні видаляємо канал
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId]); // loadMessages and loadUserProfiles are stable, currentUserId not needed in deps
+  }, [conversationId]);
+
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -220,6 +222,64 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
       event: 'typing',
       payload: { userId: currentUserId, isTyping },
     });
+  };
+
+  const handleSend = async () => {
+    if (!inputText.trim()) return; // нічого не відправляємо, якщо поле порожнє
+
+    if (!currentUserId) {
+      toast.error("Помилка: користувач не авторизований");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Припиняємо індикатор набору тексту
+      broadcastTyping(false);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+      console.log('📤 Sending message:', {
+        conversationId,
+        sender_id: currentUserId,
+        text: inputText.substring(0, 20) + '...'
+      });
+
+      // Вставляємо повідомлення у базу
+      const { data: newMessage, error } = await supabase
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: currentUserId,
+          original_text: inputText,
+          translated_text: null, // можна додати переклад, коли буде логіка
+          content: inputText,
+          type: 'text',
+          target_language: targetLanguage,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error sending message:', error);
+        toast.error("Помилка відправки повідомлення");
+        return;
+      }
+
+      // Оновлюємо UI одразу
+      if (newMessage) {
+        setMessages((prev) => [...prev, newMessage as Message]);
+        scrollToBottom();
+      }
+
+      // Очищаємо поле вводу
+      setInputText("");
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      toast.error("Сталася помилка");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,16 +469,17 @@ export const RealtimeChat = ({ conversationId, onSignOut }: RealtimeChatProps) =
       <div className="flex gap-2">
         <Input
           type="text"
-          value={inputText}
+          value={inputText}        // використовуємо inputText, а не text
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
           placeholder="Введіть повідомлення..."
           disabled={isLoading}
         />
-        <Button onClick={sendMessage} disabled={isLoading}>
+        <Button onClick={handleSend} disabled={isLoading}>
           <Send className="w-4 h-4" />
         </Button>
       </div>
+
     </Card>
   );
 };

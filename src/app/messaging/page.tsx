@@ -9,7 +9,7 @@ import { supabase } from "@/hooks/client";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 
-// Global conversation ID - everyone uses this same conversation
+// Глобальний чат для всіх користувачів
 const GLOBAL_CONVERSATION_ID = "00000000-0000-0000-0000-000000000001";
 
 export default function Messaging() {
@@ -18,7 +18,7 @@ export default function Messaging() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check current user
+    // Отримуємо поточного користувача
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
       if (data.user) {
@@ -28,7 +28,7 @@ export default function Messaging() {
       }
     });
 
-    // Listen for auth changes
+    // Слухаємо зміни авторизації
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -43,31 +43,24 @@ export default function Messaging() {
 
   const initializeConversation = async (userId: string) => {
     try {
-      console.log('🚀 Initializing global conversation for user:', userId);
+      setIsLoading(true);
 
-      // Check if global conversation exists
+      // Перевіряємо, чи існує глобальний чат
       const { data: existingConv } = await supabase
         .from("conversations")
         .select("id")
         .eq("id", GLOBAL_CONVERSATION_ID)
         .maybeSingle();
 
-      console.log('Existing conversation:', existingConv);
-
-      // Create global conversation if it doesn't exist
       if (!existingConv) {
-        console.log('Creating global conversation with ID:', GLOBAL_CONVERSATION_ID);
+        // Створюємо глобальний чат
         const { error: createError } = await supabase
           .from("conversations")
           .insert({ id: GLOBAL_CONVERSATION_ID });
-
-        if (createError && createError.code !== '23505') { // 23505 = duplicate key (already exists)
-          console.error("Error creating global conversation:", createError);
-          throw createError;
-        }
+        if (createError && createError.code !== "23505") throw createError;
       }
 
-      // Check if user is already a participant
+      // Додаємо користувача як учасника, якщо ще немає
       const { data: existingParticipant } = await supabase
         .from("conversation_participants")
         .select("id")
@@ -75,36 +68,20 @@ export default function Messaging() {
         .eq("user_id", userId)
         .maybeSingle();
 
-      console.log('Existing participant:', existingParticipant);
-
-      // Add user as participant if not already
       if (!existingParticipant) {
-        console.log('Adding user as participant');
         const { error: participantError } = await supabase
           .from("conversation_participants")
           .insert({
             conversation_id: GLOBAL_CONVERSATION_ID,
             user_id: userId,
           });
-
-        if (participantError && participantError.code !== '23505') {
-          console.error("Error adding participant:", participantError);
-          throw participantError;
-        }
+        if (participantError && participantError.code !== "23505") throw participantError;
       }
 
-      console.log('✅ Setting conversation ID:', GLOBAL_CONVERSATION_ID);
       setConversationId(GLOBAL_CONVERSATION_ID);
     } catch (error) {
-      const err = error as { message?: string; details?: string; hint?: string; code?: string };
-      console.error("Error initializing conversation:", {
-        message: err?.message,
-        details: err?.details,
-        hint: err?.hint,
-        code: err?.code,
-        full: error
-      });
-      toast.error(err?.message || "Помилка створення чату");
+      console.error("Error initializing conversation:", error);
+      toast.error("Помилка створення чату");
     } finally {
       setIsLoading(false);
     }
@@ -126,15 +103,12 @@ export default function Messaging() {
       </div>
     );
   }
+
   return (
     <main>
       <div className="container mx-auto px-4 pt-24">
-        <h1 className="text-2xl font-bold text-center mb-5">
-          Чат без обмежень
-        </h1>
-        <p className="text-lg font-medium text-center">
-          Спілкуйся швидко, зручно й без бар’єрів.
-        </p>
+        <h1 className="text-2xl font-bold text-center mb-5">Чат без обмежень</h1>
+        <p className="text-lg font-medium text-center">Спілкуйся швидко, зручно й без бар’єрів.</p>
 
         {!user && (
           <>
@@ -144,9 +118,7 @@ export default function Messaging() {
                   <Globe className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Автопереклад</h3>
-                <p className="text-sm text-muted-foreground">
-                  Миттєвий переклад за допомогою AI
-                </p>
+                <p className="text-sm text-muted-foreground">Миттєвий переклад за допомогою AI</p>
               </Card>
 
               <Card className="p-6 shadow-card text-center">
@@ -154,9 +126,7 @@ export default function Messaging() {
                   <Languages className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">7 мов</h3>
-                <p className="text-sm text-muted-foreground">
-                  Українська, англійська, польська та інші
-                </p>
+                <p className="text-sm text-muted-foreground">Українська, англійська, польська та інші</p>
               </Card>
 
               <Card className="p-6 shadow-card text-center">
@@ -164,9 +134,7 @@ export default function Messaging() {
                   <MessageSquare className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Realtime чат</h3>
-                <p className="text-sm text-muted-foreground">
-                  Миттєва доставка повідомлень
-                </p>
+                <p className="text-sm text-muted-foreground">Миттєва доставка повідомлень</p>
               </Card>
             </div>
 
@@ -176,18 +144,14 @@ export default function Messaging() {
 
         {user && conversationId && (
           <>
-            <RealtimeChat conversationId={conversationId} onSignOut={handleSignOut} />
-
-            <Card className="p-6 mt-8 bg-accent/50 border-accent">
-              <h3 className="font-semibold text-foreground mb-3">💡 Підказка</h3>
-              <p className="text-sm text-muted-foreground">
-                Використовуйте цей чат для спілкування з роботодавцями з різних країн.
-                Введіть текст вашою мовою, виберіть мову перекладу, і система автоматично
-                перекладе ваше повідомлення. Всі повідомлення оновлюються в реальному часі!
-              </p>
-            </Card>
+            <RealtimeChat
+              conversationId={conversationId}
+              onSignOut={handleSignOut}
+              user={user} // <-- додали user
+            />
           </>
         )}
+
       </div>
     </main>
   );
