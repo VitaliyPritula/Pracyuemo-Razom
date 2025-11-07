@@ -81,7 +81,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [conversationId]);
+  }, [conversationId, loadMessages]);
 
   const handleSend = async () => {
     const text = inputText.trim();
