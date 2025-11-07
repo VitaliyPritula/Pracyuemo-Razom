@@ -19,6 +19,7 @@ export const Auth = () => {
     setIsLoading(true);
 
     try {
+      if (!supabase) return;
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -42,6 +43,7 @@ export const Auth = () => {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    if (!supabase) return;
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
