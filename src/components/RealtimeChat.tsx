@@ -81,10 +81,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const newMsg = payload.new as Message;
-          setMessages(prev => {
-            if (prev.some(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
+          setMessages(prev => (prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg]));
           scrollToBottom();
         }
       )
