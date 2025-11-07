@@ -10,7 +10,7 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuth = async () => {
       if (!supabase) return;
-      const { error } = await supabase.auth.exchangeCodeForSession({ storeSession: true });
+       const { error } = await supabase.auth.exchangeCodeForSession(window.location.href);
 
       if (error) {
         console.error("Auth error:", error.message);
