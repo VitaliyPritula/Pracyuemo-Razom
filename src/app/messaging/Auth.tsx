@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 // import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
-import { signInWithGoogle } from "@/utils/supabase/action";
+import { signInWithGoogle } from "@/app/utils/supabase/action";
 
 const Auth = () => {
   return (

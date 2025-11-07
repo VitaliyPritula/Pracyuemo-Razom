@@ -54,7 +54,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
     scrollToBottom();
   };
 
-  useEffect(() =>{
+  useEffect(() => {
     const loadMessages = async () => {
       const { data, error } = await supabase
         .from("messages")
@@ -99,7 +99,6 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
 
     return () => supabase.removeChannel(channel);
   }, [conversationId]);
-
 
   const handleSend = async () => {
     const text = inputText.trim();
