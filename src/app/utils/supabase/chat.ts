@@ -11,6 +11,7 @@ export const sendMessage = async (
   targetLanguage?: string
 ) => {
   try {
+    if (!supabase) return;
     const { data, error } = await supabase
       .from("messages")
       .insert([

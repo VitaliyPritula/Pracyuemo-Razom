@@ -18,6 +18,7 @@ export default function Messaging() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) return;
     // Отримуємо поточного користувача
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
@@ -44,7 +45,7 @@ export default function Messaging() {
   const initializeConversation = async (userId: string) => {
     try {
       setIsLoading(true);
-
+      if (!supabase) return;
       // Перевіряємо, чи існує глобальний чат
       const { data: existingConv } = await supabase
         .from("conversations")
@@ -88,6 +89,7 @@ export default function Messaging() {
   };
 
   const handleSignOut = async () => {
+    if (!supabase) return;
     await supabase.auth.signOut();
     setConversationId(null);
   };

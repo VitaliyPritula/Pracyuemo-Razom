@@ -38,6 +38,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
   };
 
   const loadMessages = async () => {
+    if (!supabase) return;
     const { data, error } = await supabase
       .from("messages")
       .select("*")
@@ -55,8 +56,28 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
   };
 
   useEffect(() => {
+    // Асинхронна функція для завантаження повідомлень
+    const loadMessages = async () => {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        toast.error("Помилка завантаження повідомлень");
+        console.error(error);
+        return;
+      }
+
+      setMessages(data || []);
+      scrollToBottom();
+    };
+
     loadMessages();
 
+    if (!supabase) return;
     const channel = supabase
       .channel(`conversation:${conversationId}`)
       .on(
@@ -64,10 +85,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
         { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const newMsg = payload.new as Message;
-          setMessages(prev => {
-            if (prev.some(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
+          setMessages(prev => (prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg]));
           scrollToBottom();
         }
       )
@@ -80,12 +98,18 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [conversationId, loadMessages]);
+    // Повертаємо cleanup-функцію
+    return () => {
+      if (!supabase) return;
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId]);
+
 
   const handleSend = async () => {
     const text = inputText.trim();
     if (!text) return;
+    if (!supabase) return;
 
     try {
       const { data: newMessage, error } = await supabase
@@ -113,6 +137,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
   const handleDelete = async (msg: Message) => {
     if (!confirm("Видалити повідомлення?")) return;
     try {
+      if (!supabase) return;
       await supabase.from("messages").delete().eq("id", msg.id);
       setMessages(prev => prev.filter(m => m.id !== msg.id));
     } catch (err) {
@@ -129,6 +154,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
     }
 
     try {
+      if (!supabase) return;
       const { data, error } = await supabase
         .from("messages")
         .update({ original_text: newText })
