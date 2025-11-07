@@ -54,7 +54,24 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
     scrollToBottom();
   };
 
-  useEffect(() => {
+  useEffect(() =>{
+    const loadMessages = async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        toast.error("Помилка завантаження повідомлень");
+        console.error(error);
+        return;
+      }
+
+      setMessages(data || []);
+      scrollToBottom();
+    };
+
     loadMessages();
 
     const channel = supabase
@@ -81,7 +98,8 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [conversationId, loadMessages]);
+  }, [conversationId]);
+
 
   const handleSend = async () => {
     const text = inputText.trim();
