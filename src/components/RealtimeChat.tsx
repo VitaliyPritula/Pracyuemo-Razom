@@ -118,7 +118,6 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
           conversation_id: conversationId,
           sender_id: user.id,
           original_text: text,
-          content: text,
         })
         .select()
         .single();
