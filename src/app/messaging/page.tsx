@@ -9,7 +9,7 @@ import { supabase } from "@/hooks/client";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { ChatSidebar } from "./ChatSidebar";
-
+import { useParams, useRouter } from "next/navigation";
 // Глобальний чат для всіх користувачів
 const GLOBAL_CONVERSATION_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -19,6 +19,9 @@ export default function Messaging() {
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const params = useParams();
+  const router = useRouter();
+  const token = params.token as string;
 
   const createChatWithInvite = async () => {
     if (!supabase || !user) return;
@@ -69,9 +72,12 @@ export default function Messaging() {
     });
 
     const joinByInvite = async () => {
+      if (!supabase || !user || !token ) return;
+
       const { data: invite } = await supabase
         .from("conversation_invites")
         .select("conversation_id")
+        .eq("token", token)
         .single();
 
       if (!invite) {
