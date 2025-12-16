@@ -108,34 +108,35 @@ export const ChatSidebar = ({ userId, activeConversationId, onSelect }: Props) =
       <div className="space-y-2">
         {conversations.map(chat => (
           <div key={chat.id} className="relative">
-            <button
+            <div
               onClick={() => onSelect(chat.id)}
               className={cn(
-                "w-full text-left p-2 rounded hover:bg-muted",
+                "w-full cursor-pointer p-2 rounded hover:bg-muted",
                 chat.id === activeConversationId && "bg-muted"
               )}
             >
               <div className="text-sm font-medium truncate flex justify-between items-center">
-                {chat.id === GLOBAL_CONVERSATION_ID
-                  ? "🌍 Глобальний чат"
-                  : "Приватний чат"}
+                Приватний чат
 
                 {/* Dropdown trigger */}
                 <button
                   className="px-1"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setOpenDropdownId(openDropdownId === chat.id ? null : chat.id);
+                    setOpenDropdownId(
+                      openDropdownId === chat.id ? null : chat.id
+                    );
                   }}
                 >
                   ...
                 </button>
               </div>
 
-              <div className="text-xs text-muted-foreground truncate">
+              <div className="text-xs text-left text-muted-foreground truncate">
                 {chat.last_message}
               </div>
-            </button>
+            </div>
+
 
             {/* Dropdown menu */}
             {openDropdownId === chat.id && (
