@@ -45,13 +45,14 @@ export const Auth = () => {
     setIsLoading(true);
     if (!supabase) return;
     try {
+      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           // ДЛЯ ЛОКАЛЬНОГО
-          // redirectTo: window.location.origin
-          // ДЛЯ ДЕПЛОЮ
-           redirectTo: "https://pracyuemo-razom.vercel.app/messaging",
+          redirectTo: isLocalhost
+            ? window.location.origin // для локального
+            : "https://pracyuemo-razom.vercel.app/messaging",
         },
       });
       if (error) throw error;
@@ -91,8 +92,8 @@ export const Auth = () => {
           {isLoading
             ? "Завантаження..."
             : isSignUp
-            ? "Зареєструватись"
-            : "Увійти"}
+              ? "Зареєструватись"
+              : "Увійти"}
         </Button>
       </form>
 
