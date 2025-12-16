@@ -8,6 +8,7 @@ import { Globe, Languages, MessageSquare } from "lucide-react";
 import { supabase } from "@/hooks/client";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { ChatSidebar } from "./ChatSidebar";
 
 // Глобальний чат для всіх користувачів
 const GLOBAL_CONVERSATION_ID = "00000000-0000-0000-0000-000000000001";
@@ -15,7 +16,35 @@ const GLOBAL_CONVERSATION_ID = "00000000-0000-0000-0000-000000000001";
 export default function Messaging() {
   const [user, setUser] = useState<User | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const createChatWithInvite = async () => {
+    if (!supabase || !user) return;
+    const conversationId = crypto.randomUUID();
+
+    await supabase.from("conversations").insert({ id: conversationId });
+    await supabase.from("conversation_participants").insert({
+      conversation_id: conversationId,
+      user_id: user.id,
+    });
+
+    const token = crypto.randomUUID();
+
+    await supabase.from("conversation_invites").insert({
+      conversation_id: conversationId,
+      token,
+      created_by: user.id,
+    });
+
+    setInviteToken(token);
+    setIsModalOpen(true); // відкриваємо модал
+  };
+
+  const link = inviteToken
+    ? `${window.location.origin}/chat/invite/${inviteToken}`
+    : null;
 
   useEffect(() => {
     if (!supabase) return;
@@ -38,6 +67,28 @@ export default function Messaging() {
         initializeConversation(session.user.id);
       }
     });
+
+    const joinByInvite = async () => {
+      const { data: invite } = await supabase
+        .from("conversation_invites")
+        .select("conversation_id")
+        .single();
+
+      if (!invite) {
+        toast.error("Посилання недійсне");
+        return;
+      }
+
+      // додаємо користувача до чату
+      await supabase.from("conversation_participants").insert({
+        conversation_id: invite.conversation_id,
+        user_id: user.id,
+      });
+
+      router.push(`/chat?conversation=${invite.conversation_id}`);
+    };
+
+    joinByInvite();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -88,6 +139,7 @@ export default function Messaging() {
     }
   };
 
+
   const handleSignOut = async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -111,10 +163,65 @@ export default function Messaging() {
       <div className="container mx-auto px-4 pt-24">
         <h1 className="text-2xl font-bold text-center mb-5">Чат без обмежень</h1>
         <p className="text-lg font-medium text-center">Спілкуйся швидко, зручно й без бар’єрів.</p>
+        {user && (
+          <div className="text-center my-4">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded"
+              onClick={createChatWithInvite}
+            >
+              Створити приватний чат
+            </button>
+          </div>
+        )}
 
+        {link && (
+          <div className="mt-4 text-center">
+            <p className="text-sm text-muted-foreground mb-2">
+              Посилання для запрошення:
+            </p>
+            <a
+              href={link}
+              className="text-blue-600 underline break-all"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {link}
+            </a>
+          </div>
+        )}
+
+        {isModalOpen && inviteToken && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-96 text-center relative">
+              <h2 className="text-lg font-bold mb-4">Посилання для запрошення</h2>
+              <input
+                type="text"
+                value={`${window.location.origin}/chat/invite/${inviteToken}`}
+                readOnly
+                className="w-full p-2 border rounded mb-4 text-sm"
+              />
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded mr-2"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/chat/invite/${inviteToken}`);
+                  toast.success("Скопійовано!");
+                }}
+              >
+                Копіювати
+              </button>
+              <button
+                className="px-4 py-2 bg-gray-300 rounded"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Закрити
+              </button>
+            </div>
+          </div>
+        )}
         {!user && (
           <>
             <div className="grid md:grid-cols-3 gap-6 mb-12">
+
               <Card className="p-6 shadow-card text-center">
                 <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <Globe className="w-6 h-6 text-primary" />
@@ -144,15 +251,24 @@ export default function Messaging() {
           </>
         )}
 
-        {user && conversationId && (
-          <>
-            <RealtimeChat
-              conversationId={conversationId}
-              onSignOut={handleSignOut}
-              user={user} // <-- додали user
+        {user && (
+          <div className="flex gap-4 mt-6">
+            <ChatSidebar
+              userId={user.id}
+              activeConversationId={conversationId}
+              onSelect={setConversationId}
             />
-          </>
+
+            {conversationId && (
+              <RealtimeChat
+                conversationId={conversationId}
+                onSignOut={handleSignOut}
+                user={user}
+              />
+            )}
+          </div>
         )}
+
 
       </div>
     </main>
