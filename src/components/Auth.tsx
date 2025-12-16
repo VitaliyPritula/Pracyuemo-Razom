@@ -47,7 +47,12 @@ export const Auth = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin },
+        options: {
+          // ДЛЯ ЛОКАЛЬНОГО
+          // redirectTo: window.location.origin
+          // ДЛЯ ДЕПЛОЮ
+           redirectTo: "https://pracyuemo-razom.vercel.app/messaging",
+        },
       });
       if (error) throw error;
     } catch (error: unknown) {
