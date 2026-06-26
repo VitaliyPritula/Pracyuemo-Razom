@@ -3,17 +3,27 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
 import { loginUser, registerUser } from "@/lib/api";
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export const Auth = () => {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/messaging");
+    }
+  }, [authLoading, router, user]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +37,7 @@ export const Auth = () => {
       } else {
         await loginUser(email, password);
         toast.success("Успішний вхід!");
-        window.location.reload();
+        router.push("/messaging");
       }
     } catch (error: unknown) {
       const message =
@@ -41,6 +51,18 @@ export const Auth = () => {
       setIsLoading(false);
     }
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Перевірка авторизації...</p>
+      </div>
+    );
+  }
+
+  if (user) {
+    return null;
+  }
 
   return (
     <Card className="p-6 max-w-md mx-auto w-full">

@@ -9,12 +9,13 @@ import {
   fetchConversations,
   logoutUser,
 } from "@/lib/api";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ChatSidebar } from "./ChatSidebar";
 
 export default function Messaging() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -125,6 +126,28 @@ export default function Messaging() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main>
+        <div className="min-h-screen bg-background">
+          <div className="container mx-auto px-4 pt-24 pb-12 text-center">
+            <h1 className="text-2xl font-bold mb-4">Доступ заборонено</h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Щоб користуватися чатом, увійдіть або зареєструйтесь.
+            </p>
+            <button
+              type="button"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              onClick={() => router.push("/login")}
+            >
+              Увійти
+            </button>
+          </div>
+        </div>
+      </main>
     );
   }
 

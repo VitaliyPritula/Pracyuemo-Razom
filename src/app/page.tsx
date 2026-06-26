@@ -56,7 +56,7 @@ export default function Home() {
             Як це працює
           </h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Три прості кроки до успішної комунікації та працевлаштування
+            Чотири прості кроки до успішної комунікації та працевлаштування
           </p>
 
           <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-6">
