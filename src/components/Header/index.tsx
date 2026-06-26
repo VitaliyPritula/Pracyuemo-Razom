@@ -9,13 +9,17 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
+import { useAuth } from "@/hooks/useAuth";
+import { logoutUser } from "@/lib/api";
 import { User } from "lucide-react";
-import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { user } = useAuth();
 
   const links = [
     { title: "Головна", href: "/" },
@@ -90,12 +94,25 @@ const Header = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href="/login" className="cursor-pointer">Увійти</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/register?mode=signup" className="cursor-pointer">Зареєструватися</Link>
-                </DropdownMenuItem>
+                {!user ? (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/login" className="cursor-pointer">Увійти</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/register?mode=signup" className="cursor-pointer">Зареєструватися</Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      await logoutUser();
+                      router.push("/");
+                    }}
+                  >
+                    Вийти
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button asChild className="hidden md:block">

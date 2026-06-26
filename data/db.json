@@ -13,14 +13,14 @@
   ],
   "sessions": [
     {
-      "token": "273c253dba269d55f88e913b6c894ff31553a180ec0579d19b662562dfe15d22",
-      "user_id": "68a1afb2-1db2-4e4f-a8cd-65c9828645c8",
-      "expires_at": "2026-07-03T10:35:54.899Z"
-    },
-    {
       "token": "ede77ace365e287280a6617081591a33105aef864f1299b3c9cec2aa24a81a0e",
       "user_id": "dc289040-f2f4-4405-b5e9-0fc9c672cdfe",
       "expires_at": "2026-07-03T10:37:07.480Z"
+    },
+    {
+      "token": "cb06290a2e6632b9338e7d8321d9ed764cce2b43c6c9f369e625835b415d3096",
+      "user_id": "68a1afb2-1db2-4e4f-a8cd-65c9828645c8",
+      "expires_at": "2026-07-03T12:35:13.641Z"
     }
   ],
   "conversations": [

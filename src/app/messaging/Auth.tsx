@@ -1,11 +1,8 @@
 "use client";
 
 import React from "react";
-import { Button } from "@/components/ui/button";
 // import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import Image from "next/image";
-import { signInWithGoogle } from "@/app/utils/supabase/action";
 
 const Auth = () => {
   return (
@@ -30,20 +27,6 @@ const Auth = () => {
       </div>
 
       {/* окрема форма для Google Login */}
-      <form action={signInWithGoogle}>
-        <Button
-          type="submit"
-          className="w-full flex items-center justify-center gap-2"
-        >
-          <Image
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            alt="Google"
-            width={20}
-            height={20}
-          />
-          Продовжити з Google
-        </Button>
-      </form>
     </Card>
   );
 };
