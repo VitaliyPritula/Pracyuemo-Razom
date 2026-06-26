@@ -1,8 +1,6 @@
 "use client";
 
 import { RealtimeChat } from "@/app/messaging/RealtimeChat";
-import { Auth } from "@/components/Auth";
-import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Conversation,
@@ -11,7 +9,6 @@ import {
   fetchConversations,
   logoutUser,
 } from "@/lib/api";
-import { Globe, Languages, MessageSquare } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -25,6 +22,7 @@ export default function Messaging() {
   const [isLoading, setIsLoading] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const searchParams = useSearchParams();
 
   const link = inviteToken
@@ -167,54 +165,45 @@ export default function Messaging() {
           </div>
         )}
 
-        {!user && (
-          <>
-            <div className="grid md:grid-cols-3 gap-6 mb-12">
-              <Card className="p-6 shadow-card text-center">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Globe className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">Автопереклад</h3>
-                <p className="text-sm text-muted-foreground">Миттєвий переклад за допомогою AI</p>
-              </Card>
 
-              <Card className="p-6 shadow-card text-center">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Languages className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">7 мов</h3>
-                <p className="text-sm text-muted-foreground">Українська, англійська, польська та інші</p>
-              </Card>
-
-              <Card className="p-6 shadow-card text-center">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-foreground mb-2">Realtime чат</h3>
-                <p className="text-sm text-muted-foreground">Миттєва доставка повідомлень</p>
-              </Card>
-            </div>
-
-            <Auth />
-          </>
-        )}
 
         {user && (
-          <div className="flex gap-4 mt-6">
-            <ChatSidebar
-              conversations={conversations}
-              activeConversationId={conversationId}
-              onSelect={setConversationId}
-              onDelete={deleteChat}
-            />
-            {conversationId && (
-              <RealtimeChat
-                conversationId={conversationId}
-                onSignOut={handleSignOut}
-                user={user}
+          <>
+            <div className="flex items-center justify-between gap-3 mt-6 lg:hidden">
+              <button
+                type="button"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                onClick={() => setSidebarOpen(open => !open)}
+              >
+                {sidebarOpen ? "Сховати чати" : "Показати чати"}
+              </button>
+              <span className="text-sm text-muted-foreground">
+                {conversations.length} чатів
+              </span>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-4 mt-2 relative">
+              <ChatSidebar
+                conversations={conversations}
+                activeConversationId={conversationId}
+                onSelect={(id) => {
+                  setConversationId(id);
+                  if (window.innerWidth < 1024) {
+                    setSidebarOpen(false);
+                  }
+                }}
+                onDelete={deleteChat}
+                className={sidebarOpen ? "" : "hidden lg:block"}
               />
-            )}
-          </div>
+              {conversationId && (
+                <RealtimeChat
+                  conversationId={conversationId}
+                  onSignOut={handleSignOut}
+                  user={user}
+                />
+              )}
+            </div>
+          </>
         )}
       </div>
     </main>

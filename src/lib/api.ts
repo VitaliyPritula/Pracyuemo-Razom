@@ -9,11 +9,19 @@ export type Conversation = {
   updated_at?: string;
 };
 
+export type MessageAttachment = {
+  name: string;
+  type: string;
+  size: number;
+  data: string;
+};
+
 export type Message = {
   id: string;
   conversation_id: string;
   sender_id: string;
   original_text: string;
+  attachments?: MessageAttachment[];
   created_at: string;
 };
 
@@ -104,16 +112,24 @@ export async function deleteConversation(conversationId: string) {
   });
 }
 
+export async function translateText(text: string, targetLang: string) {
+  return fetchJson<{ translatedText: string }>("/api/translate", {
+    method: "POST",
+    cache: "no-store",
+    body: JSON.stringify({ text, targetLang }),
+  });
+}
+
 export async function fetchMessages(conversationId: string) {
   return fetchJson<{ messages: Message[] }>(`/api/chat/messages?conversationId=${encodeURIComponent(conversationId)}`, {
     cache: "no-store",
   });
 }
 
-export async function sendMessage(conversationId: string, text: string) {
+export async function sendMessage(conversationId: string, text: string, attachments?: MessageAttachment[]) {
   return fetchJson<{ message: Message }>("/api/chat/messages", {
     method: "POST",
-    body: JSON.stringify({ conversationId, text }),
+    body: JSON.stringify({ conversationId, text, attachments }),
   });
 }
 

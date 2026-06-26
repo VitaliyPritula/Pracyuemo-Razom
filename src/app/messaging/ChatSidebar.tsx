@@ -16,6 +16,7 @@ interface Props {
   activeConversationId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  className?: string;
 }
 
 const GLOBAL_CONVERSATION_ID = "00000000-0000-0000-0000-000000000001";
@@ -25,6 +26,7 @@ export const ChatSidebar = ({
   activeConversationId,
   onSelect,
   onDelete,
+  className,
 }: Props) => {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -45,7 +47,10 @@ export const ChatSidebar = ({
   }, []);
 
   return (
-    <Card className="w-72 h-[600px] p-3 overflow-y-auto">
+    <Card className={cn(
+      "w-full lg:w-72 h-[320px] lg:h-[600px] p-3 overflow-y-auto sm:relative absolute  sm: lg:relative  z-10 w-full h-full lg:h-auto",
+      className
+    )}>
       <h3 className="font-semibold mb-3">Чати</h3>
 
       <div className="space-y-2">
@@ -59,7 +64,7 @@ export const ChatSidebar = ({
               )}
             >
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Приватний чат</span>
+                <span className="text-sm font-medium mb-2">Приватний чат</span>
 
                 <button
                   onClick={(e) => {
@@ -74,7 +79,7 @@ export const ChatSidebar = ({
                 </button>
               </div>
 
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate text-left ">
                 {chat.last_message}
               </p>
             </div>

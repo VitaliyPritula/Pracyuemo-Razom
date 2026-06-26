@@ -29,11 +29,19 @@ export type ConversationParticipantRecord = {
   joined_at: string;
 };
 
+export type MessageAttachmentRecord = {
+  name: string;
+  type: string;
+  size: number;
+  data: string;
+};
+
 export type MessageRecord = {
   id: string;
   conversation_id: string;
   sender_id: string;
   original_text: string;
+  attachments?: MessageAttachmentRecord[];
   created_at: string;
 };
 

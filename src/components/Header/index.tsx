@@ -1,15 +1,15 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-// import { Button } from "../ui/button";
+import { Button } from "../ui/button";
 import {
   DropdownMenu,
-  // DropdownMenuContent,
-  // DropdownMenuItem,
-  // DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 
-// import { User } from "lucide-react";
+import { User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
@@ -21,7 +21,7 @@ const Header = () => {
     { title: "Головна", href: "/" },
     { title: "Система спілкування", href: "/messaging" },
     // { title: "Вакансії", href: "/jobs" },
-    // { title: "Профіль", href: "/profile" },
+    { title: "Профіль", href: "/profile" },
   ];
 
   const toggleMenu = () => setIsOpen(!isOpen);
@@ -84,23 +84,23 @@ const Header = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-3">
             <DropdownMenu>
-              {/* <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
                   <User className="h-5 w-5" />
                 </Button>
-              </DropdownMenuTrigger> */}
-              {/* <DropdownMenuContent align="end">
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
                   <Link href="/login" className="cursor-pointer">Увійти</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/register?mode=signup" className="cursor-pointer">Зареєструватися</Link>
                 </DropdownMenuItem>
-              </DropdownMenuContent> */}
+              </DropdownMenuContent>
             </DropdownMenu>
-            {/* <Button asChild className="hidden md:block">
+            <Button asChild className="hidden md:block">
               <Link href="/dashboard">Роботодавець</Link>
-            </Button> */}
+            </Button>
           </div>
           {/* Burger Icon */}
           <div

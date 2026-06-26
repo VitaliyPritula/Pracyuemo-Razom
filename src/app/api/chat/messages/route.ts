@@ -50,9 +50,14 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { conversationId, text } = body as { conversationId?: string; text?: string };
-  if (!conversationId || !text) {
-    return NextResponse.json({ error: "conversationId або text відсутні" }, { status: 400 });
+  const { conversationId, text, attachments } = body as {
+    conversationId?: string;
+    text?: string;
+    attachments?: { name: string; type: string; size: number; data: string }[];
+  };
+
+  if (!conversationId || (!text && (!attachments || attachments.length === 0))) {
+    return NextResponse.json({ error: "conversationId або text/attachments відсутні" }, { status: 400 });
   }
 
   const db = await readDb();
@@ -68,7 +73,8 @@ export async function POST(request: Request) {
     id: createId(),
     conversation_id: conversationId,
     sender_id: user.id,
-    original_text: text,
+    original_text: text ?? "",
+    attachments: attachments?.length ? attachments : undefined,
     created_at: new Date().toISOString(),
   };
 
