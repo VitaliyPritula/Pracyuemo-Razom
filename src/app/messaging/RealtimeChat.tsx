@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { supabase } from "@/hooks/client";
+import { deleteMessage, fetchMessages, sendMessage, updateMessage } from "@/lib/api";
+import { LogOut, Send } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { User } from "@supabase/supabase-js";
-import { Send, LogOut } from "lucide-react";
 
 interface Message {
   id: string;
@@ -18,7 +17,7 @@ interface Message {
 interface RealtimeChatProps {
   conversationId: string;
   onSignOut: () => void;
-  user: User;
+  user: { id: string; email: string };
 }
 
 export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatProps) => {
@@ -38,110 +37,50 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
   };
 
   const loadMessages = async () => {
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      toast.error("Помилка завантаження повідомлень");
+    try {
+      const { messages } = await fetchMessages(conversationId);
+      setMessages(messages);
+      scrollToBottom();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Помилка завантаження повідомлень";
+      toast.error(message);
       console.error(error);
-      return;
     }
-
-    setMessages(data || []);
-    scrollToBottom();
   };
 
   useEffect(() => {
-    // Асинхронна функція для завантаження повідомлень
-    const loadMessages = async () => {
-      if (!supabase) return;
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
-
-      if (error) {
-        toast.error("Помилка завантаження повідомлень");
-        console.error(error);
-        return;
-      }
-
-      setMessages(data || []);
-      scrollToBottom();
-    };
-
     loadMessages();
 
-    if (!supabase) return;
-    const channel = supabase
-      .channel(`conversation:${conversationId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          setMessages(prev => (prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg]));
-          scrollToBottom();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
-        (payload) => {
-          setMessages(prev => prev.filter(m => m.id !== payload.old.id));
-        }
-      )
-      .subscribe();
-
-    // Повертаємо cleanup-функцію
-    return () => {
-      if (!supabase) return;
-      supabase.removeChannel(channel);
-    };
+    const polling = setInterval(loadMessages, 4000);
+    return () => clearInterval(polling);
   }, [conversationId]);
-
 
   const handleSend = async () => {
     const text = inputText.trim();
     if (!text) return;
-    if (!supabase) return;
 
     try {
-      const { data: newMessage, error } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          original_text: text,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setMessages(prev => [...prev, newMessage as Message]);
+      const { message } = await sendMessage(conversationId, text);
+      setMessages((prev) => [...prev, message]);
       setInputText("");
       scrollToBottom();
-    } catch (err) {
-      console.error(err);
-      toast.error("Не вдалося відправити повідомлення");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Не вдалося відправити повідомлення";
+      toast.error(message);
+      console.error(error);
     }
   };
 
   const handleDelete = async (msg: Message) => {
     if (!confirm("Видалити повідомлення?")) return;
+
     try {
-      if (!supabase) return;
-      await supabase.from("messages").delete().eq("id", msg.id);
-      setMessages(prev => prev.filter(m => m.id !== msg.id));
-    } catch (err) {
-      console.error(err);
-      toast.error("Не вдалося видалити повідомлення");
+      await deleteMessage(msg.id);
+      setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Не вдалося видалити повідомлення";
+      toast.error(message);
+      console.error(error);
     }
   };
 
@@ -153,22 +92,14 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
     }
 
     try {
-      if (!supabase) return;
-      const { data, error } = await supabase
-        .from("messages")
-        .update({ original_text: newText })
-        .eq("id", msg.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setMessages(prev => prev.map(m => (m.id === msg.id ? data : m)));
+      const { message } = await updateMessage(msg.id, newText);
+      setMessages((prev) => prev.map((m) => (m.id === msg.id ? message : m)));
       setEditingMessageId(null);
       toast.success("Повідомлення оновлено");
-    } catch (err) {
-      console.error(err);
-      toast.error("Не вдалося оновити повідомлення");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Не вдалося оновити повідомлення";
+      toast.error(message);
+      console.error(error);
     }
   };
 
@@ -183,7 +114,7 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
 
       <ScrollArea className="h-[500px] border rounded p-4 mb-4" ref={scrollAreaRef}>
         <div className="space-y-4">
-          {messages.map(msg => {
+          {messages.map((msg) => {
             const isOwn = msg.sender_id === user.id;
             const isEditing = editingMessageId === msg.id;
 
@@ -194,14 +125,16 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
                     <div className="flex gap-2">
                       <Input
                         value={editingText}
-                        onChange={e => setEditingText(e.target.value)}
-                        onKeyDown={e => {
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onKeyDown={(e) => {
                           if (e.key === "Enter") handleSaveEdit(msg);
                           if (e.key === "Escape") setEditingMessageId(null);
                         }}
                         autoFocus
                       />
-                      <Button size="sm" onClick={() => handleSaveEdit(msg)}>💾</Button>
+                      <Button size="sm" onClick={() => handleSaveEdit(msg)}>
+                        💾
+                      </Button>
                     </div>
                   ) : (
                     msg.original_text
@@ -219,7 +152,9 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
                     >
                       Редагувати
                     </button>
-                    <button className="text-red-500" onClick={() => handleDelete(msg)}>Видалити</button>
+                    <button className="text-red-500" onClick={() => handleDelete(msg)}>
+                      Видалити
+                    </button>
                   </div>
                 )}
 
@@ -237,9 +172,12 @@ export const RealtimeChat = ({ conversationId, onSignOut, user }: RealtimeChatPr
           type="text"
           placeholder="Введіть повідомлення..."
           value={inputText}
-          onChange={e => setInputText(e.target.value)}
-          onKeyPress={e => {
-            if (e.key === "Enter") handleSend();
+          onChange={(e) => setInputText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSend();
+            }
           }}
         />
         <Button onClick={handleSend}>

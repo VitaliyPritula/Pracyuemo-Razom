@@ -1,16 +1,17 @@
-'use client";';
+'use client';
 
-import Image from "next/image";
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { supabase } from "@/hooks/client";
+import { Input } from "@/components/ui/input";
+import { loginUser, registerUser } from "@/lib/api";
+import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,56 +20,30 @@ export const Auth = () => {
     setIsLoading(true);
 
     try {
-      if (!supabase) return;
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
+        await registerUser(email, password);
         toast.success("Реєстрація успішна! Тепер можете увійти.");
+        setIsSignUp(false);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
+        await loginUser(email, password);
         toast.success("Успішний вхід!");
+        window.location.reload();
       }
     } catch (error: unknown) {
       const message =
-        error instanceof Error ? error.message : "Невідома помилка";
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    if (!supabase) return;
-    try {
-      const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          // ДЛЯ ЛОКАЛЬНОГО
-          redirectTo: isLocalhost
-            ? window.location.origin // для локального
-            : "https://pracyuemo-razom.vercel.app/messaging",
-        },
-      });
-      if (error) throw error;
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Невідома помилка";
-      toast.error(message);
+        error instanceof Error
+          ? error.message
+          : typeof error === "object"
+            ? JSON.stringify(error)
+            : String(error);
+      toast.error(message || "Невідома помилка");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Card
-      className="p-6 max-w-md mx-auto ab
-    solute top-1/2 left-1/2 transform translate-x-1 -translate-y-1/2 w-full">
+    <Card className="p-6 max-w-md mx-auto w-full">
       <h2 className="text-2xl font-semibold text-foreground mb-4">
         {isSignUp ? "Реєстрація" : "Вхід"}
       </h2>
@@ -81,13 +56,24 @@ export const Auth = () => {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <Input
-          type="password"
-          placeholder="Пароль"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <div className="relative">
+          <Input
+            type={showPassword ? "text" : "password"}
+            placeholder="Пароль"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="pr-10"
+          />
+          <button
+            type="button"
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={showPassword ? "Сховати пароль" : "Показати пароль"}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading
             ? "Завантаження..."
@@ -104,30 +90,6 @@ export const Auth = () => {
           {isSignUp ? "Вже є акаунт? Увійти" : "Немає акаунту? Зареєструватись"}
         </button>
       </div>
-
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">або</span>
-        </div>
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full flex items-center justify-center gap-2"
-        onClick={handleGoogleSignIn}
-        disabled={isLoading}>
-        <Image
-          src="https://www.svgrepo.com/show/475656/google-color.svg"
-          alt="Google"
-          width={20}
-          height={20}
-        />
-        Продовжити з Google
-      </Button>
     </Card>
   );
 };

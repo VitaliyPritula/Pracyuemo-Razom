@@ -1,0 +1,41 @@
+{
+  "users": [
+    {
+      "id": "68a1afb2-1db2-4e4f-a8cd-65c9828645c8",
+      "email": "pritula.vitaly94@gmail.com",
+      "passwordHash": "ab4b386ea809296e78635693f0831f2a$f0984186fe531caa7585f526bf388dc21922880a86d8c65a3bf98d3247c27767"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "3059902b21f0798af8cd288c5c2c237bd2700745074e65a36170f17b0c51254e",
+      "user_id": "68a1afb2-1db2-4e4f-a8cd-65c9828645c8",
+      "expires_at": "2026-07-03T07:02:44.143Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "created_at": "2026-06-26T07:24:41.623Z",
+      "updated_at": "2026-06-26T07:24:41.623Z"
+    }
+  ],
+  "conversation_participants": [
+    {
+      "id": "8f312bbc-490d-445a-998a-2d94edb14fdd",
+      "conversation_id": "00000000-0000-0000-0000-000000000001",
+      "user_id": "68a1afb2-1db2-4e4f-a8cd-65c9828645c8",
+      "joined_at": "2026-06-26T07:24:41.624Z"
+    }
+  ],
+  "messages": [
+    {
+      "id": "d8d47509-b44b-4501-80dd-dcc847775e37",
+      "conversation_id": "00000000-0000-0000-0000-000000000001",
+      "sender_id": "68a1afb2-1db2-4e4f-a8cd-65c9828645c8",
+      "original_text": "привіт",
+      "created_at": "2026-06-26T07:46:43.059Z"
+    }
+  ],
+  "conversation_invites": []
+}

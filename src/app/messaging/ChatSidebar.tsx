@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/hooks/client";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -7,99 +8,41 @@ import { toast } from "sonner";
 interface Conversation {
   id: string;
   updated_at?: string;
-  last_message?: string;
+  last_message: string;
 }
 
 interface Props {
-  userId: string;
+  conversations: Conversation[];
   activeConversationId: string | null;
   onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 const GLOBAL_CONVERSATION_ID = "00000000-0000-0000-0000-000000000001";
 
-export const ChatSidebar = ({ userId, activeConversationId, onSelect }: Props) => {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+export const ChatSidebar = ({
+  conversations,
+  activeConversationId,
+  onSelect,
+  onDelete,
+}: Props) => {
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Завантаження чатів
+  // закриття dropdown по кліку поза ним
   useEffect(() => {
-
-    const loadConversations = async () => {
-      if (!supabase) return;
-      const { data, error } = await supabase
-        .from("conversation_participants")
-        .select(`
-          conversation_id,
-          conversations (
-            id,
-            messages (
-              original_text,
-              created_at
-            )
-          )
-        `)
-        .eq("user_id", userId);
-
-      if (error) {
-        console.error(error);
-        return;
+    const handler = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setOpenDropdownId(null);
       }
-
-      const formatted = data.map((row: any) => {
-        const messages = row.conversations.messages;
-        const last = messages?.sort(
-          (a: any, b: any) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
-
-        return {
-          id: row.conversation_id,
-          last_message: last?.original_text ?? "Без повідомлень",
-          updated_at: last?.created_at,
-        };
-      });
-
-      setConversations(formatted);
     };
 
-    loadConversations();
-  }, [userId]);
-
-  // Видалення чату
-  const handleDeleteChat = async (chatId: string) => {
-    if (chatId === GLOBAL_CONVERSATION_ID) {
-      toast.error("Глобальний чат видаляти не можна");
-      return;
-    }
-    if (!supabase) return;
-    const { error: delParticipantsError } = await supabase
-      .from("conversation_participants")
-      .delete()
-      .eq("conversation_id", chatId);
-
-    if (delParticipantsError) {
-      console.error(delParticipantsError);
-      toast.error("Помилка при видаленні учасників чату");
-      return;
-    }
-
-    if (!supabase) return;
-    const { error: delConversationError } = await supabase
-      .from("conversations")
-      .delete()
-      .eq("id", chatId);
-
-    if (delConversationError) {
-      console.error(delConversationError);
-      toast.error("Помилка при видаленні чату");
-      return;
-    }
-
-    setConversations(prev => prev.filter(c => c.id !== chatId));
-    setOpenDropdownId(null);
-    toast.success("Чат успішно видалено");
-  };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <Card className="w-72 h-[600px] p-3 overflow-y-auto">
@@ -111,54 +54,50 @@ export const ChatSidebar = ({ userId, activeConversationId, onSelect }: Props) =
             <div
               onClick={() => onSelect(chat.id)}
               className={cn(
-                "w-full cursor-pointer p-2 rounded hover:bg-muted",
+                "cursor-pointer p-2 rounded hover:bg-muted",
                 chat.id === activeConversationId && "bg-muted"
               )}
             >
-              <div className="text-sm font-medium truncate flex justify-between items-center">
-                Приватний чат
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Приватний чат</span>
 
-                {/* Dropdown trigger */}
                 <button
-                  className="px-1"
                   onClick={(e) => {
                     e.stopPropagation();
                     setOpenDropdownId(
                       openDropdownId === chat.id ? null : chat.id
                     );
                   }}
+                  className="text-gray-500 hover:text-gray-700 h-4"
                 >
-                  ...
+                  ⋯
                 </button>
               </div>
 
-              <div className="text-xs text-left text-muted-foreground truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {chat.last_message}
-              </div>
+              </p>
             </div>
 
-
-            {/* Dropdown menu */}
             {openDropdownId === chat.id && (
-              <div className="absolute right-2 top-8 w-40 bg-white border rounded shadow-md z-50">
+              <div
+                ref={dropdownRef}
+                className="absolute right-2 top-8 bg-white border rounded shadow z-50"
+              >
                 <button
-                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteChat(chat.id);
+                  type="button"
+                  className="block w-full px-3 py-2 text-sm hover:bg-gray-100"
+                  onClick={() => {
+                    if (chat.id === GLOBAL_CONVERSATION_ID) {
+                      toast.error("Глобальний чат видаляти не можна");
+                      return;
+                    }
+
+                    setOpenDropdownId(null);
+                    onDelete(chat.id);
                   }}
                 >
                   Видалити чат
-                </button>
-                <button
-                  className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toast("Функціонал перейменування ще не реалізовано");
-                    setOpenDropdownId(null);
-                  }}
-                >
-                  Перейменувати чат
                 </button>
               </div>
             )}
