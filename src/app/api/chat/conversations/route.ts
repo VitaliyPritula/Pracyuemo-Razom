@@ -1,5 +1,16 @@
 import { createId } from "@/lib/auth";
-import { readDb, writeDb } from "@/lib/db";
+import {
+  getSessionByToken,
+  getUserById,
+  getConversationById,
+  createConversation,
+  getConversationsByUserId,
+  getParticipantsByConversation,
+  addParticipant,
+  getMessagesByConversation,
+  createInvite,
+  supabase,
+} from "@/lib/db";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -10,11 +21,10 @@ async function getCurrentUser() {
   const sessionToken = cookiesList.get("chat_session")?.value;
   if (!sessionToken) return null;
 
-  const db = await readDb();
-  const session = db.sessions.find((item) => item.token === sessionToken);
+  const session = await getSessionByToken(sessionToken);
   if (!session || new Date(session.expires_at) < new Date()) return null;
 
-  return db.users.find((user) => user.id === session.user_id) ?? null;
+  return getUserById(session.user_id);
 }
 
 export async function GET() {
@@ -23,23 +33,21 @@ export async function GET() {
     return NextResponse.json({ error: "Неавторизований користувач" }, { status: 401 });
   }
 
-  const db = await readDb();
-  let globalConversation = db.conversations.find((item) => item.id === GLOBAL_CONVERSATION_ID);
+  // Забезпечуємо існування глобального чату
+  const globalConversation = await getConversationById(GLOBAL_CONVERSATION_ID);
   if (!globalConversation) {
-    globalConversation = {
+    await createConversation({
       id: GLOBAL_CONVERSATION_ID,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
-    db.conversations.push(globalConversation);
+    });
   }
 
-  const globalParticipantExists = db.conversation_participants.some(
-    (item) => item.conversation_id === GLOBAL_CONVERSATION_ID && item.user_id === user.id
-  );
-
-  if (!globalParticipantExists) {
-    db.conversation_participants.push({
+  // Додаємо юзера до глобального чату якщо ще не учасник
+  const globalParticipants = await getParticipantsByConversation(GLOBAL_CONVERSATION_ID);
+  const isGlobalParticipant = globalParticipants.some((p) => p.user_id === user.id);
+  if (!isGlobalParticipant) {
+    await addParticipant({
       id: createId(),
       conversation_id: GLOBAL_CONVERSATION_ID,
       user_id: user.id,
@@ -47,21 +55,19 @@ export async function GET() {
     });
   }
 
-  await writeDb(db);
+  const participantRows = await getConversationsByUserId(user.id);
 
-  const participantRows = db.conversation_participants.filter((item) => item.user_id === user.id);
-  const formatted = participantRows.map((participant) => {
-    const messages = db.messages
-      .filter((message) => message.conversation_id === participant.conversation_id)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const lastMessage = messages[messages.length - 1];
-
-    return {
-      id: participant.conversation_id,
-      last_message: lastMessage?.original_text ?? "Без повідомлень",
-      updated_at: lastMessage?.created_at,
-    };
-  });
+  const formatted = await Promise.all(
+    participantRows.map(async (participant) => {
+      const messages = await getMessagesByConversation(participant.conversation_id);
+      const lastMessage = messages[messages.length - 1];
+      return {
+        id: participant.conversation_id,
+        last_message: lastMessage?.original_text ?? "Без повідомлень",
+        updated_at: lastMessage?.created_at,
+      };
+    })
+  );
 
   return NextResponse.json({ conversations: formatted });
 }
@@ -73,41 +79,36 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { createInvite = false } = body as { createInvite?: boolean };
+  const { createInvite: shouldCreateInvite = false } = body as { createInvite?: boolean };
 
-  const db = await readDb();
   const conversationId = createId();
-  const inviteToken = createInvite ? createId() : undefined;
+  const inviteToken = shouldCreateInvite ? createId() : undefined;
 
-  db.conversations.push({
+  await createConversation({
     id: conversationId,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   });
 
-  db.conversation_participants.push({
+  await addParticipant({
     id: createId(),
     conversation_id: conversationId,
     user_id: user.id,
     joined_at: new Date().toISOString(),
   });
 
-  if (createInvite) {
-    db.conversation_invites.push({
+  if (shouldCreateInvite && inviteToken) {
+    await createInvite({
       id: createId(),
       conversation_id: conversationId,
-      token: inviteToken!,
+      token: inviteToken,
       created_by: user.id,
       created_at: new Date().toISOString(),
     });
   }
 
-  await writeDb(db);
-
   return NextResponse.json(
-    createInvite
-      ? { token: inviteToken, conversationId }
-      : { conversationId }
+    shouldCreateInvite ? { token: inviteToken, conversationId } : { conversationId }
   );
 }
 
@@ -127,25 +128,17 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Глобальний чат видаляти заборонено" }, { status: 403 });
   }
 
-  const db = await readDb();
-  const participant = db.conversation_participants.find(
-    (item) => item.conversation_id === conversationId && item.user_id === user.id
-  );
-
-  if (!participant) {
+  const participants = await getParticipantsByConversation(conversationId);
+  const isParticipant = participants.some((p) => p.user_id === user.id);
+  if (!isParticipant) {
     return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
   }
 
-  db.conversations = db.conversations.filter((item) => item.id !== conversationId);
-  db.conversation_participants = db.conversation_participants.filter(
-    (item) => item.conversation_id !== conversationId
-  );
-  db.messages = db.messages.filter((item) => item.conversation_id !== conversationId);
-  db.conversation_invites = db.conversation_invites.filter(
-    (item) => item.conversation_id !== conversationId
-  );
-
-  await writeDb(db);
+  // Каскадне видалення через ON DELETE CASCADE в БД, але явно чистимо все
+  await supabase.from("messages").delete().eq("conversation_id", conversationId);
+  await supabase.from("conversation_participants").delete().eq("conversation_id", conversationId);
+  await supabase.from("conversation_invites").delete().eq("conversation_id", conversationId);
+  await supabase.from("conversations").delete().eq("id", conversationId);
 
   return NextResponse.json({ success: true });
 }

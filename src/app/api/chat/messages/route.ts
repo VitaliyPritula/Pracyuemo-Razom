@@ -1,5 +1,12 @@
 import { createId } from "@/lib/auth";
-import { readDb, writeDb } from "@/lib/db";
+import {
+  getSessionByToken,
+  getUserById,
+  getParticipantsByConversation,
+  getMessagesByConversation,
+  createMessage,
+  supabase,
+} from "@/lib/db";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -8,11 +15,10 @@ async function getCurrentUser() {
   const sessionToken = cookiesList.get("chat_session")?.value;
   if (!sessionToken) return null;
 
-  const db = await readDb();
-  const session = db.sessions.find((item) => item.token === sessionToken);
+  const session = await getSessionByToken(sessionToken);
   if (!session || new Date(session.expires_at) < new Date()) return null;
 
-  return db.users.find((user) => user.id === session.user_id) ?? null;
+  return getUserById(session.user_id);
 }
 
 export async function GET(request: Request) {
@@ -27,19 +33,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "conversationId не вказано" }, { status: 400 });
   }
 
-  const db = await readDb();
-  const isParticipant = db.conversation_participants.some(
-    (item) => item.conversation_id === conversationId && item.user_id === user.id
-  );
-
-  if (!isParticipant) {
+  const participants = await getParticipantsByConversation(conversationId);
+  if (!participants.some((p) => p.user_id === user.id)) {
     return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
   }
 
-  const messages = db.messages
-    .filter((message) => message.conversation_id === conversationId)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
-
+  const messages = await getMessagesByConversation(conversationId);
   return NextResponse.json({ messages });
 }
 
@@ -60,12 +59,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "conversationId або text/attachments відсутні" }, { status: 400 });
   }
 
-  const db = await readDb();
-  const isParticipant = db.conversation_participants.some(
-    (item) => item.conversation_id === conversationId && item.user_id === user.id
-  );
-
-  if (!isParticipant) {
+  const participants = await getParticipantsByConversation(conversationId);
+  if (!participants.some((p) => p.user_id === user.id)) {
     return NextResponse.json({ error: "Доступ заборонено" }, { status: 403 });
   }
 
@@ -78,9 +73,7 @@ export async function POST(request: Request) {
     created_at: new Date().toISOString(),
   };
 
-  db.messages.push(message);
-  await writeDb(db);
-
+  await createMessage(message);
   return NextResponse.json({ message });
 }
 
@@ -96,8 +89,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "id не вказано" }, { status: 400 });
   }
 
-  const db = await readDb();
-  const message = db.messages.find((item) => item.id === id);
+  const { data: message } = await supabase.from("messages").select("*").eq("id", id).single();
   if (!message) {
     return NextResponse.json({ error: "Повідомлення не знайдено" }, { status: 404 });
   }
@@ -106,9 +98,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Немає права видаляти" }, { status: 403 });
   }
 
-  db.messages = db.messages.filter((item) => item.id !== id);
-  await writeDb(db);
-
+  await supabase.from("messages").delete().eq("id", id);
   return NextResponse.json({ success: true });
 }
 
@@ -124,8 +114,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "id або text відсутні" }, { status: 400 });
   }
 
-  const db = await readDb();
-  const message = db.messages.find((item) => item.id === id);
+  const { data: message } = await supabase.from("messages").select("*").eq("id", id).single();
   if (!message) {
     return NextResponse.json({ error: "Повідомлення не знайдено" }, { status: 404 });
   }
@@ -134,8 +123,21 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Немає права редагувати" }, { status: 403 });
   }
 
-  message.original_text = text;
-  await writeDb(db);
+  const { data: updated } = await supabase
+    .from("messages")
+    .update({ original_text: text })
+    .eq("id", id)
+    .select()
+    .single();
 
-  return NextResponse.json({ message });
+  return NextResponse.json({
+    message: {
+      id: updated.id,
+      conversation_id: updated.conversation_id,
+      sender_id: updated.sender_id,
+      original_text: updated.original_text,
+      attachments: updated.attachments ?? [],
+      created_at: updated.created_at,
+    },
+  });
 }

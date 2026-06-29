@@ -1,13 +1,11 @@
-import { readDb } from "@/lib/db";
+import { getSessionByToken, getUserById } from "@/lib/db";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
     const cookieHeader = request.headers.get("cookie") || "";
-    const sessionCookie = cookieHeader
-      .split("; ")
-      .find((item) => item.startsWith("chat_session="));
+    const sessionCookie = cookieHeader.split("; ").find((item) => item.startsWith("chat_session="));
     const cookiesList = await cookies();
     const sessionToken = sessionCookie?.split("=")[1] ?? cookiesList.get("chat_session")?.value;
 
@@ -15,14 +13,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ user: null });
     }
 
-    const db = await readDb();
-    const session = db.sessions.find((item) => item.token === sessionToken);
-
+    const session = await getSessionByToken(sessionToken);
     if (!session || new Date(session.expires_at) < new Date()) {
       return NextResponse.json({ user: null });
     }
 
-    const user = db.users.find((item) => item.id === session.user_id);
+    const user = await getUserById(session.user_id);
     if (!user) {
       return NextResponse.json({ user: null });
     }

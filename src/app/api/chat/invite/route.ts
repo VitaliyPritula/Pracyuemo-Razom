@@ -1,4 +1,4 @@
-import { readDb, writeDb } from "@/lib/db";
+import { getSessionByToken, getUserById, getInviteByToken, getParticipantsByConversation, addParticipant } from "@/lib/db";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -7,11 +7,10 @@ async function getCurrentUser() {
   const sessionToken = cookiesList.get("chat_session")?.value;
   if (!sessionToken) return null;
 
-  const db = await readDb();
-  const session = db.sessions.find((item) => item.token === sessionToken);
+  const session = await getSessionByToken(sessionToken);
   if (!session || new Date(session.expires_at) < new Date()) return null;
 
-  return db.users.find((user) => user.id === session.user_id) ?? null;
+  return getUserById(session.user_id);
 }
 
 export async function POST(request: Request) {
@@ -26,24 +25,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "token не вказано" }, { status: 400 });
   }
 
-  const db = await readDb();
-  const invite = db.conversation_invites.find((item) => item.token === token);
+  const invite = await getInviteByToken(token);
   if (!invite) {
     return NextResponse.json({ error: "Посилання недійсне" }, { status: 404 });
   }
 
-  const participantExists = db.conversation_participants.some(
-    (item) => item.conversation_id === invite.conversation_id && item.user_id === user.id
-  );
+  const participants = await getParticipantsByConversation(invite.conversation_id);
+  const alreadyJoined = participants.some((p) => p.user_id === user.id);
 
-  if (!participantExists) {
-    db.conversation_participants.push({
+  if (!alreadyJoined) {
+    await addParticipant({
       id: crypto.randomUUID(),
       conversation_id: invite.conversation_id,
       user_id: user.id,
       joined_at: new Date().toISOString(),
     });
-    await writeDb(db);
   }
 
   return NextResponse.json({ conversationId: invite.conversation_id });

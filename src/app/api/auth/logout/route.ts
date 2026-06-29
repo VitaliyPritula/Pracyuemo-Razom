@@ -1,14 +1,13 @@
-import { readDb, writeDb } from "@/lib/db";
+import { deleteSession } from "@/lib/db";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function POST() {
   const cookiesList = await cookies();
   const sessionToken = cookiesList.get("chat_session")?.value;
+
   if (sessionToken) {
-    const db = await readDb();
-    db.sessions = db.sessions.filter((session) => session.token !== sessionToken);
-    await writeDb(db);
+    await deleteSession(sessionToken);
   }
 
   const response = NextResponse.json({ success: true });
